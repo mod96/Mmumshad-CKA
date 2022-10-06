@@ -29,7 +29,7 @@ it is the replacement of Replication Controller, but supports 'selector' which i
 kubectl scale rs $(RS) --replicas=0
 ```
 
-## Tips for fast-CLI commands (Imperative ways)
+## Tips for fast-CLI commands using **Imperative ways**
 
 Edit existing object
 ```
@@ -82,7 +82,7 @@ This will not use the pods labels as selectors, instead it will assume selectors
 
 
 
-Create a Service named nginx of type NodePort to expose pod nginx's port 80 on port 30080 on the nodes:
+Create a `Service` named nginx of type NodePort to expose pod nginx's port 80 on port 30080 on the nodes:
 ```bash
 kubectl expose pod nginx --type=NodePort --port=80 --name=nginx-service --dry-run=client -o yaml
 ```
@@ -125,7 +125,7 @@ or
 kubectl get pods --all-namespaces
 ```
 
-## Applying all files in folder at once (Declarative way)
+## Applying all files in folder at once in **Declarative way**
 ```bash
 kubectl apply -f /path/to/config-files
 ```
