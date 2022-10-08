@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+  nodeName: node009
+
+---
+apiVersion: v1
+kind: Binding
+metadata:
+  name: nginx
+target:
+  apiVersion: v1
+  kind: Node
+  name: node009

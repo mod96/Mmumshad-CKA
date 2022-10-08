@@ -1,4 +1,4 @@
-# Section 1
+# Section 1&2 : Core Concepts
 
 ## apiVersion, synonym
 
@@ -44,58 +44,29 @@ Generate POD Manifest YAML file (-o yaml). Don't create it(--dry-run)
 ```bash
 kubectl run nginx --image=nginx --dry-run=client -o yaml
 ```
+Extract the pod definition in YAML file
+```bash
+kubectl get pod webapp -o yaml > my-new-pod.yaml
+```
 Create a `Deployment`
 ```bash
 kubectl create deployment --image=nginx nginx
 ```
-Generate Deployment YAML file (-o yaml). Don't create it(--dry-run)
-```bash
-kubectl create deployment --image=nginx nginx --dry-run=client -o yaml
-```
 Generate Deployment YAML file (-o yaml). Don't create it(--dry-run) with 4 Replicas (--replicas=4)
 ```bash
-kubectl create deployment --image=nginx nginx --dry-run=client -o yaml > nginx-deployment.yaml
+kubectl create deployment nginx --image=nginx --replicas=4 --dry-run=client -o yaml > nginx-deployment.yaml
 ```
 Save it to a file, make necessary changes to the file (for example, adding more replicas) and then create the deployment.
 ```bash
 kubectl create -f nginx-deployment.yaml
 ```
-OR
 
-In k8s version 1.19+, we can specify the --replicas option to create a deployment with 4 replicas.
-```bash
-kubectl create deployment --image=nginx nginx --replicas=4 --dry-run=client -o yaml > nginx-deployment.yaml
-```
-
-Create a Service named redis-service of type ClusterIP to expose pod redis on port 6379
+Create a `Service` named redis-service of type ClusterIP to expose pod redis on port 6379
 ```bash
 kubectl expose pod redis --port=6379 --name redis-service --dry-run=client -o yaml
 ```
 (This will automatically use the pod's labels as selectors)
 
-Or
-
-```bash
-kubectl create service clusterip redis --tcp=6379:6379 --dry-run=client -o yaml 
-```
-This will not use the pods labels as selectors, instead it will assume selectors as app=redis. You cannot pass in selectors as an option. So it does not work very well if your pod has a different label set. So generate the file and modify the selectors before creating the service
-
-
-
-Create a `Service` named nginx of type NodePort to expose pod nginx's port 80 on port 30080 on the nodes:
-```bash
-kubectl expose pod nginx --type=NodePort --port=80 --name=nginx-service --dry-run=client -o yaml
-```
-This will automatically use the pod's labels as selectors, but you cannot specify the node port. You have to generate a definition file and then add the node port in manually before creating the service with the pod.
-
-Or
-
-```bash
-kubectl create service nodeport nginx --tcp=80:80 --node-port=30080 --dry-run=client -o yaml
-```
-This will not use the pods labels as selectors
-
-Both the above commands have their own challenges. While one of it cannot accept a selector the other cannot accept a node port. I would recommend going with the kubectl expose command. If you need to specify a node port, generate a definition file using the same command and manually input the nodeport before creating the service.
 
 ## DNS & Namespace & Resource Quota
 To reach `db-service` in `local` or `default` namespace,
@@ -129,3 +100,103 @@ kubectl get pods --all-namespaces
 ```bash
 kubectl apply -f /path/to/config-files
 ```
+
+
+# Section 2 : Scheduling
+
+## Selector in cli
+```bash
+k get all --selector env=prod
+```
+
+## Node Selecting : usually use 1&4 together
+
+### 1. Taint & Tolerence
+
+taint the node
+```bash
+k taint nodes node-name key=value:taint-effect
+```
+untaint
+```
+k taint nodes node-name key=value:taint-effect-
+```
+* taint-effect defines what happens to PODs that do not tolerate this taint. 
+* NoSchedule | PreferNoSchedule | Noexecute
+* example : ```k taint nodes node1 app=blue:NoSchedule```
+
+```yml
+...
+spec:
+  containers:
+  ...
+  tolerations:
+  - key: "app"
+    operator: "Equal"
+    value: "blue"
+    effect: "NoSchedule"
+```
+
+### 2. Direct selection
+```yml
+  containers:
+  ...
+  nodeName: node009
+```
+
+### 3. Label Nodes & nodeSelector
+
+```bash
+kubectl label nodes <node-name> <label-key>=<label-value>
+```
+* example : ```kubectl label nodes node-1 size=Large```
+```yml
+...
+spec:
+  containers:
+  ...
+  nodeSelector:
+    size: Large
+```
+
+### 4. Node Affinity
+```yml
+...
+spec:
+  containers:
+  ...
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: size
+            operator: In
+            values:
+            - Large
+            - Medium
+          - key: size
+            operator: NotIn
+            values:
+            - Small
+```
+* requiredDuringSchedulingIgnoredDuringExecution
+* preferredDuringSchedulingIgnoredDuringExecution
+* requiredDuringSchedulingRequiredDuringExecution
+
+## Resource
+```yml
+containers:
+...
+  resources:
+    requests:
+      cpu: 0.1  # larger than 1m
+      memory: "256Mi"  # Mebibyte
+    limits:  # default 1 vCPU, 512 Mi / throttle if exceed cpu, terminated if exceed memory
+      cpu: 2
+      memory: "1Gi"
+```
+for PODs in some namespace to have default `requests`, read [docs](https://www.udemy.com/course/certified-kubernetes-administrator-with-practice-tests/learn/lecture/18055967#notes)
+
+
+
