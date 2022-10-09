@@ -11,17 +11,18 @@
 |Service|v1|svc|
 |Namespace|v1|ns|
 |ResourceQuota|v1|quota|
+|DaemonSet|apps/v1|ds|
 
 * [resource shortcuts](https://medium.com/swlh/maximize-your-kubectl-productivity-with-shortcut-names-for-kubernetes-resources-f017303d95e2)
 * service types : (default)ClusterIp, NodePort, LoadBalancer
 
-## Lab1 : Pods
+## Core Object 1: Pods
 
 ```bash
 kubectl get pods | grep newpods | head -1 | awk '{print $1}'
 ```
 
-## Lab2 : ReplicaSets
+## Core Object 2: ReplicaSets
 
 it is the replacement of Replication Controller, but supports 'selector' which is meant to monitor with context of 'set'.
 
@@ -44,9 +45,9 @@ Generate POD Manifest YAML file (-o yaml). Don't create it(--dry-run)
 ```bash
 kubectl run nginx --image=nginx --dry-run=client -o yaml
 ```
-Extract the pod definition in YAML file
+Extract the pod definition in YAML file, add command `sleep 1000`
 ```bash
-kubectl get pod webapp -o yaml > my-new-pod.yaml
+kubectl get pod webapp -o yaml --command -- sleep 1000 > my-new-pod.yaml
 ```
 Create a `Deployment`
 ```bash
@@ -101,8 +102,9 @@ kubectl get pods --all-namespaces
 kubectl apply -f /path/to/config-files
 ```
 
+<br>
 
-# Section 2 : Scheduling
+# Section 3 : Scheduling
 
 ## Selector in cli
 ```bash
@@ -158,6 +160,7 @@ spec:
   nodeSelector:
     size: Large
 ```
+This can't use multiple filtering. So we use node affinity
 
 ### 4. Node Affinity
 ```yml
@@ -198,5 +201,60 @@ containers:
 ```
 for PODs in some namespace to have default `requests`, read [docs](https://www.udemy.com/course/certified-kubernetes-administrator-with-practice-tests/learn/lecture/18055967#notes)
 
+## DaemonSets
 
+Only one copy of the pod is present on every Nodes. `.yaml` is the same as rs.
+
+* kube-proxy, weave-net(networking)
+* Ignored by scheduler
+
+## Static PODs
+
+fixed to Node.
+
+`.yaml` of PODs must be in `/etc/kubernetes/manifests` of a Node. created by the kubelet. For example, Deploy Control Plane components as Static PODs
+
+* Ignored by scheduler
+* location of staticPods can be vary depending on `/var/lib/kubelet/config.yaml`
+* To inspect other node, `ssh <<internal IP>>`
+
+## Custom Scheduler
+Create one with file
+```bash
+kubectl create -n kube-system configmap my-scheduler-config --from-file=/root/my-scheduler-config.yaml
+```
+Create POD with that scheduler
+```yml
+spec:
+  containers:
+  ...
+  schedulerName: my-scheduler
+```
+
+<br>
+
+# Section 4 : Logging & Monitoring
+
+## Metric Server
+
+k8s doesn't have fully-functional metrics server. But below is the default metrics server (but, this is in-memory.) For fully-functional metricds server, we need `Prometheus` | `Elastic Stack` | `Datadog` | `dynatrace`.
+```bash
+git clone https://github.com/kubernetes-sigs/metrics-server.git
+kubectl create -f deploy/1.8+/
+```
+view
+```bash
+k top node
+k top pod
+```
+
+## Logging
+```bash
+k create -f event-simulator.yaml
+k logs -f event-simulator-pod <<container name if given multiple>>
+```
+
+<br>
+
+# Section 5 : Application Lifecycle Management
 
