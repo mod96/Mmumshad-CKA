@@ -416,7 +416,7 @@ etcdctl snapshot save snapshot.db --endpoints=127.0.0.1:2379 \
 
 etcdctl snapshot status snapshot.db
 ```
-ETCD - restore
+ETCD - restore (didn't worked in kodekloud. try oneline restore command in External etcd part.)
 ```bash
 export ETCDCTL_API=3
 etcdctl snapshot restore snapshot.db \
@@ -426,10 +426,8 @@ vim /etc/kubernetes/manifests/etcd.yaml  # change dirs
 ```
 
 ## Multiple Clusters
-```bash
-k config get-clusters
-k config use-context cluster1
-```
+(go KubeConfig part of security for `config` command)
+
 Get a file from remote server.
 ```bash
 ssh cluster1-controlplane "cat /opt/cluster1.db" > /opt/cluster1.db
@@ -460,3 +458,125 @@ chown -R etcd:etcd /var/lib/etcd-data-new
 systemctl daemon-reload
 systemctl restart etcd
 ```
+
+
+<br>
+
+# Section 7 : Security
+
+## Authentication
+|kind|apiVersion|alias|
+|---|---|---|
+|servicesaccounts|v1|sa|
+
+create account
+```bash
+k create serviceaccount sa1
+k get servicesaccount
+```
+* how? ~~static password file~~ | ~~static token file~~ | certificates | identity service
+
+## View certificates in k8s
+
+There is internal CA in k8s.
+
+![alt text cert](/img/cert.PNG)
+
+you can check [this](./security-the-hard-way.md) or [mmumshad's tool](https://github.com/mmumshad/kubernetes-the-hard-way/tree/master/tools) to make own .crt, but let's just use kubeadm, which will do all the things for us.
+
+```bash
+cat /etc/kubernetes/manifests/kube-apiserver.yaml | grep .crt
+```
+```bash
+openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text -noout
+```
+wrong certificate can kill kube-api server, and can't use kubectl command. Then, use
+```bash
+docker ps -a
+docker logs <container-id>
+```
+or
+```bash
+crictl ps -a
+```
+which is prefered for high version k8s. [docs](https://kubernetes.io/docs/tasks/debug/debug-cluster/crictl/)
+
+## Certificates API
+
+To generate another admin, the first admin had to login to masternode and sign with ca.crt&ca.key. But there is an easy way.
+```bash
+openssl genrsa -out jane.key 2048
+> jane.key
+openssl req -new -key jane.key -subj "/CN=jane" -out jane.csr
+> jane.csr
+```
+```yml
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: jane
+spec:
+  groups:
+  - system:nodes
+  - system:authenticated
+  usages:
+  - digital signature
+  - key encipherment
+  - client auth
+  request:
+    $(cat jane.csr | base64 | tr -d "\n")
+```
+```bash
+k get csr
+k certificate approve(deny) jane
+k get csr jane -o yaml
+```
+copy certificate and
+```
+echo "LS0...o=" | base64 --decode
+```
+
+## Detail of KubeConfig
+```yml
+apiVersion: v1
+kind: Config
+
+current-context: dev-user@development  # choose from context
+
+clusters:  # this is fixed most of the time
+- name: kubernetes
+  cluster:
+    certificate-authority: /etc/kubernetes/pki/ca.crt  (certificate-authority-data: $(base64))
+    server: https://kube-apiserver:6443
+- name: development
+  ...
+- name: stage
+  ...
+
+contexts:  # change this to make connection
+- name: admin@kubernetes
+  context:
+    cluster: kubernetes
+    user: admin
+    namespace: default
+- name: dev-user@development
+  ...
+...
+
+users:  # this is fixed most of the time
+- name: admin
+  user:
+    client-certificate: /etc/kubernetes/pki/admin.crt
+    client-key: /etc/kubernetes/pki/admin.key
+- name: dev-user
+  ...
+- name: production
+```
+```bash
+k config view
+```
+This will change the file and context.
+```
+k config use-context prod-user@production
+```
+* for temporary use, `k config --kubeconfig=/path/my-config ...`
