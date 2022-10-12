@@ -16,6 +16,8 @@ admin gives it's public lock to the server to protect ssh connection. If we want
 
 A client must generate a symmetric key to communicate with server(NOT password). Then need to send symmetric key to the server at the initial transmission safely. (Then the client sends id&pwd to authenticate to the server.)
 
+* we don't use asynchronous key in every transmission because it consumes lots of hardware resources.
+
 ```
 openssl genrsa -out ex.key 1024
 > ex.key (private key,  *.key  *-key.pem)

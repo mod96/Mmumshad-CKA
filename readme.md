@@ -33,6 +33,20 @@ it is the replacement of Replication Controller, but supports 'selector' which i
 kubectl scale rs $(RS) --replicas=0
 ```
 
+## linux command tips
+```bash
+scp /opt/cluster2.db etcd-server:/root (Post a file to remote server.)
+```
+```bash
+k get clusterroles | wc -l (count rows)
+```
+```bash
+k exec -it my-pod -- ls /var/run/secrets/kubernetes.io/servicesaccount
+```
+```bash
+ps -ef  (view all processes)
+```
+
 ## Tips for fast-CLI commands using **Imperative ways**
 
 Edit existing object
@@ -469,14 +483,32 @@ systemctl restart etcd
 |---|---|---|
 |servicesaccounts|v1|sa|
 
-create account
+### 1. service account (account used by application e.g. logging app)
 ```bash
 k create serviceaccount sa1
-k get servicesaccount
+k create token sa1
 ```
-* how? ~~static password file~~ | ~~static token file~~ | certificates | identity service
+Actually, every namespace has its own service account and volume projected to every pod in it. To change this,
+```yml
+spec:
+  containers:
+  ...
+  serviceAccountName: sa1
+```
+To use old-school style, non-expirary token
+```yml
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/service-account-token
+metadata:
+  name: sa1-token
+  annotations:
+    kubernetes.io/service-account.name: sa1
+```
 
-## View certificates in k8s
+then we need 'authenticate' for the account. How? ~~static password file~~ | ~~static token file~~ | certificates | identity service
+
+### 2. View certificates in k8s
 
 There is internal CA in k8s.
 
@@ -501,7 +533,7 @@ crictl ps -a
 ```
 which is prefered for high version k8s. [docs](https://kubernetes.io/docs/tasks/debug/debug-cluster/crictl/)
 
-## Certificates API
+### 3. Certificates API (by doing 3&4, we create User / Group)
 
 To generate another admin, the first admin had to login to masternode and sign with ca.crt&ca.key. But there is an easy way.
 ```bash
@@ -510,6 +542,7 @@ openssl genrsa -out jane.key 2048
 openssl req -new -key jane.key -subj "/CN=jane" -out jane.csr
 > jane.csr
 ```
+* setting `"/O=some-group"` will make and set group. [link](https://kubernetes-tutorial.schoolofdevops.com/configuring_authentication_and_authorization/)
 ```yml
 apiVersion: certificates.k8s.io/v1
 kind: CertificateSigningRequest
@@ -536,7 +569,8 @@ copy certificate and
 echo "LS0...o=" | base64 --decode
 ```
 
-## Detail of KubeConfig
+### 4. Detail of KubeConfig
+only the one named `config` and located where kube-apiserver pod defines will be applied.
 ```yml
 apiVersion: v1
 kind: Config
@@ -580,3 +614,143 @@ This will change the file and context.
 k config use-context prod-user@production
 ```
 * for temporary use, `k config --kubeconfig=/path/my-config ...`
+
+## Authorization
+
+Node | ABAC(Atrribute Based) | RBAC(Role Based) | Webhook | AlwaysAllow(default) | AlwaysDeny
+
+ABAC is hard to manage since it writes every policy for each user/groups.
+
+RBAC, for set of permissions, we define role and match users to that role. (see slide)
+
+Webhook : such as `Open Policy Agent` can help this.
+
+### We normally use RBAC (for User, ServiceAccount, Group)
+
+### 1. Namespaced Objects
+
+* such as pods, rs, jobs, deploy, svc, secrets, roles, rolebindings, configmaps, pvc
+* Can inquire such resources with `k api-resources --namespaced=true`
+
+developer-role.yaml
+```yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list“, "get", “create“, “update“, “delete"]
+- apiGroups: [""]
+  resources: [“ConfigMap"]
+  verbs: [“create“]
+  resourceNames: ["devConfig"]
+```
+devuser-developer-binding.yaml
+```yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devuser-developer-binding
+  namespace: default
+subjects:
+- kind: User
+  name: dev-user
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: developer
+  apiGroup: rbac.authorization.k8s.io
+```
+check access
+```
+k auth can-i create deploy (i'm sample admin)
+> yes
+k auth can-i delete nodes (i'm sample admin)
+> no
+k auth can-i create pods --as dev-user
+> no
+k auth can-i create pods --as dev-user
+> yes
+k auth can-i create pods --as dev-user -n test
+> no
+```
+
+### 2. Cluster Scoped Objects 
+
+* Such as nodes, pv, clusterroles, clusterrolebindings, certificatessigningrequests, namespaces
+* Can inquire such resources with `k api-resources --namespaced=false`
+* But, if we want global scoped pod/rs/... role, this will do that.
+
+cluster-admin-role.yaml
+```yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cluster-administrator
+rules:
+- apiGroups: [""]
+  resources: [“nodes"]
+  verbs: ["list“, "get", “create“, “delete"]
+```
+
+cluster-admin-role-binding.yaml
+```yml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin-role-binding
+subjects:
+- kind: User
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: cluster-administrator
+  apiGroup: rbac.authorization.k8s.io
+```
+
+
+## etc
+
+### 1. Using private image
+```bash
+kubectl create secret docker-registry secret-name \
+--docker-server=private-registry.io \
+--docker-username=registry-user \
+--docker-password=registry-password \
+--docker-email=registry-user@org.com
+```
+```yml
+spec:
+  containers:
+  ...
+  imagePullSecrets:
+  - name: secret-name
+```
+
+### 2. Adding/Deleting Security Context on the Pod/Container
+Pod
+```yml
+spec:
+  containers:
+  ...
+  securityContext:
+    runAsUser: 1000
+    capabilities:
+      add: ["MAC_ADMIN"]
+```
+Container
+```yml
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu
+    securityContext:
+      runAsUser: 1000
+      capabilities:
+        add: ["MAC_ADMIN"]
+```
+if both configured, container's one will override.
