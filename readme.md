@@ -13,6 +13,10 @@
 |ResourceQuota|v1|quota|
 |DaemonSet|apps/v1|ds|
 |ConfigMap|v1|cm|
+|servicesaccounts|v1|sa|
+|networkpolicies|networking.k8s.io/v1|netpol|
+|persistentvolumes|v1|pv|
+|persistentvolumeclaims|v1|pvc|
 
 * [resource shortcuts](https://medium.com/swlh/maximize-your-kubectl-productivity-with-shortcut-names-for-kubernetes-resources-f017303d95e2)
 * service types : (default)ClusterIp, NodePort, LoadBalancer
@@ -479,9 +483,6 @@ systemctl restart etcd
 # Section 7 : Security
 
 ## Authentication
-|kind|apiVersion|alias|
-|---|---|---|
-|servicesaccounts|v1|sa|
 
 ### 1. service account (account used by application e.g. logging app)
 ```bash
@@ -739,8 +740,6 @@ spec:
   ...
   securityContext:
     runAsUser: 1000
-    capabilities:
-      add: ["MAC_ADMIN"]
 ```
 Container
 ```yml
@@ -750,7 +749,192 @@ spec:
     image: ubuntu
     securityContext:
       runAsUser: 1000
-      capabilities:
+      capabilities:  # this only works for container
         add: ["MAC_ADMIN"]
 ```
 if both configured, container's one will override.
+
+### 3. Networking Policies
+allows only with defined network policy rules.
+```yml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: db-policy
+  namespace: prod  # if not, default
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+  - Ingress # if needed
+  - Egress  # if needed
+  ingress:
+  - from:
+    - podSelector:  # if not, all pods in namespaceSelector is allowed
+        matchLabels:
+          name: api-pod
+      namespaceSelector:  # 'and' op. if not, same as metadata.namespace
+        matchLabels:
+          name: prod
+    - ipBlock:  # 'or' op.
+        cidr: 192.168.5.10/32  # imaginary backup server
+    ports:
+    - protocol: TCP
+      port: 3306
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 192.168.5.10/32
+    ports:
+      - protocol: TCP
+        port: 80
+  - to:
+    - ipBlock:
+        cidr: something-else
+    ports:
+      - protocol: TCP
+        port: 8080
+```
+
+
+<br>
+
+# Section 8 : Storage
+
+Container Runtime Interface | Container Network Interface | Container Storage Interface
+![](/img/cricnicsi.PNG)
+
+
+
+## Volumes directly mount to pod (not recommended)
+
+```yml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: random-number-generator
+spec:
+  containers:
+  - image: alpine
+    name: alpine
+    command: ["/bin/sh","-c"]
+    args: ["shuf -i 0-100 -n 1 >> /opt/number.out;"]
+    volumeMounts:
+    - mountPath: /opt
+      name: data-volume
+  volumes:
+  - name: data-volume
+    hostPath:  # but this will create /data on each Node it created
+      path: /data
+      type: Directory
+```
+
+## Persistent Volume (PV)
+
+```yml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv-vol1
+spec:
+  accessModes:
+    - ReadWriteOnce  # only one Node
+  persistentVolumeReclaimPolicy: Retain  # default Retain. Delete | Recycle
+  capacity:
+    storage: 1Gi
+  hostPath:  # not recommended on production
+    path: /tmp/data
+```
+* [accessModes](https://kubernetes.io/ko/docs/concepts/storage/persistent-volumes/#%EC%A0%91%EA%B7%BC-%EB%AA%A8%EB%93%9C)
+
+
+## Persistent Volume Claim (PVC)
+
+administrator generates PV and users make PVC to use that. k8s choose PV depending `Capacity | Access Modes | Volumes Modes | Storage Class | Selector`. PVC : PV = 1 : 1
+
+```yml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myclaim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+```
+
+## Using PVC in POD
+```yml
+spec:
+  containers:
+    - name: myfrontend
+      image: nginx
+      volumeMounts:
+      - mountPath: "/var/www/html"
+        name: mypd
+  volumes:
+    - name: mypd
+      persistentVolumeClaim:
+        claimName: myclaim
+```
+
+
+## Stateful Set (CKAD)
+
+Similar to deploy, but this provision PODs in sequential order. (imagine example of master-slaves initialization sequence) 
+
+pod name is not random. its just indexed. mysql-0, mysql-1, ... so we know mysql-0 is the master pod and can use this name for cloning and pointing master.
+
+We need to specify headless serviceName.
+
+* headless service : does not load-balance. no ip address. gives DNS entries for each POD using the pod name and sub-domain. The DNS entry is as follows.
+* `podname.headless-svcname.namespace.svc.cluster-domain.local`
+
+```yml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-h
+spec:
+  ports:
+  - port: 3306
+  selector:
+    app: mysql
+  clusterIP: None  # this makes it headless
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  labels:
+    app: mysql
+spec:
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+      - name: mysql
+        image: mysql
+  replicas: 3
+  selector:
+    matchLabels:
+      app: mysql
+  serviceName: mysql-h
+```
+for example of the lecture(CKAD), `mysql-0.mysql-h.default.svc.cluster.local` is master's DNS entry.
+
+Using headless in POD can be:
+```yml
+metadata:
+  name: myapp-pod
+spec:
+  containers:
+  ...
+  subdomain: mysql-h
+  hostname: mysql-pod
+```
