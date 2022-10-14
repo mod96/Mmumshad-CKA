@@ -21,7 +21,7 @@
 * [resource shortcuts](https://medium.com/swlh/maximize-your-kubectl-productivity-with-shortcut-names-for-kubernetes-resources-f017303d95e2)
 * service types : (default)ClusterIp, NodePort, LoadBalancer
 
-## Core Object 1: Pods
+### Core Object: Pods
 
 ```bash
 kubectl get pods | grep newpods | head -1 | awk '{print $1}'
@@ -29,7 +29,7 @@ kubectl get pods | grep newpods | head -1 | awk '{print $1}'
 
 * There are 3 common patterns, when it comes to designing multi-container PODs: `sidecar` | `adapter` | `ambassador`
 
-## Core Object 2: ReplicaSets
+### Core Object: ReplicaSets
 
 it is the replacement of Replication Controller, but supports 'selector' which is meant to monitor with context of 'set'.
 
@@ -37,7 +37,10 @@ it is the replacement of Replication Controller, but supports 'selector' which i
 kubectl scale rs $(RS) --replicas=0
 ```
 
-## linux command tips
+## Linux command tips
+```bash
+ps -aux | grep kubelet | grep --color container-runtime
+```
 ```bash
 scp /opt/cluster2.db etcd-server:/root (Post a file to remote server.)
 ```
@@ -49,6 +52,25 @@ k exec -it my-pod -- ls /var/run/secrets/kubernetes.io/servicesaccount
 ```
 ```bash
 ps -ef  (view all processes)
+```
+[-aux vs -ef](https://unipro.tistory.com/238)
+```bash
+nslookup  (query to dns)
+dig       (?)
+```
+```bash
+ifconfig -a
+route           (to see gateway)
+netstat -nlpt   (tcp listening)
+```
+```bash
+ps aux | grep kube-apiserver
+```
+* you can check every options made for kube-apiserver. Also, you can check it in static pod yamls.
+  
+querying to DNS server is as below.
+```bash
+host web-service.default.svc
 ```
 
 ## Tips for fast-CLI commands using **Imperative ways**
@@ -91,6 +113,8 @@ kubectl expose pod redis --port=6379 --name redis-service --dry-run=client -o ya
 
 
 ## DNS & Namespace & Resource Quota
+* note that DNS(CoreDNS) is configured in kubelet (`/var/lib/kubelet/config.yaml`)
+
 To reach `db-service` in `local` or `default` namespace,
 ```javascript
 mysql.connect("db-service");
@@ -465,7 +489,7 @@ ETCDCTL_API=3 etcdctl \
 ```
 - External ETCD : inspect
 ```
-ps -ef | grep etcd
+ps -ef | grep --color etcd
 ```
 - External ETCD : restore & change data-dir
 ```
@@ -938,3 +962,36 @@ spec:
   subdomain: mysql-h
   hostname: mysql-pod
 ```
+
+<br>
+
+# Section 9 : Networking
+
+WeaveWorks | flannel | cilium | NSX | Calico ...
+
+docker didn't applied CNI. So make just image and k8s will adjust it.
+
+CNI plugin must be specified in every kubelet.service. (actually a daemonset) But of course, most of them provides simple installation. [Weave installation](https://www.weave.works/docs/net/latest/kubernetes/kube-addon/)
+
+or, as in the lecture,
+```bash
+kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64
+| tr -d '\n')"
+```
+
+* The CNI binaries are located under `/opt/cni/bin` by default.
+* CNI configuration file are located under `/etc/cni/net.d` be default.
+
+## kube-proxy
+
+how does kube-proxy forwards service to pod? there are three ways : userspace | iptables | ipvs. And default is `iptables`. 
+
+![](/img/kube-proxy.PNG)
+
+kube-proxy has its own log.
+```bash
+cat /var/log/kube-proxy.log
+```
+
+* kube-proxy configures service-ips. (see `/etc/kubernetes/manifests/kube-apiserver.yaml`)
+* cni(like weaver) configures pod ips. (see `k logs <weaver pod> weaver`)
