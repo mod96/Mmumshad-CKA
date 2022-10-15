@@ -68,9 +68,12 @@ ps aux | grep kube-apiserver
 ```
 * you can check every options made for kube-apiserver. Also, you can check it in static pod yamls.
   
-querying to DNS server is as below.
 ```bash
-host web-service.default.svc
+host web-service.default.svc  # querying to DNS server
+```
+
+```bash
+cat /etc/*release*  # Identify the name of the Operating system installed.
 ```
 
 ## Tips for fast-CLI commands using **Imperative ways**
@@ -319,6 +322,52 @@ k rollout status deployment/myapp-deployment
 ```bash
 k rollout history deployment/myapp-deployment
 k rollout undo deployment/myapp-deployment
+```
+
+## Job (CKAD)
+
+Continue to retry execution of the Pods until a specified number of them successfully terminate.
+
+```yml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: math-add-job
+spec:
+  completions: 3
+  template:
+    spec:
+      containers:
+      - name: math-add
+        image: ubuntu
+        command: ['expr', '3', '+', '2']
+      restartPolicy: Never
+```
+* `completion`: 3 - new pod will run after previous one finish(either completed/error) till 3 completion. (if not set `parallelism`)
+```bash
+kubectl logs math-add-job-ld87pn
+> 5
+```
+
+## CronJob (CKAD)
+see [official docs](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+```yml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: hello
+spec:
+  schedule: "* 1 * * *"
+  jobTemplate:  # same as 'Job' from here
+    spec:
+      completions: 3
+      template:
+        spec:
+          containers:
+          - name: math-add
+            image: ubuntu
+            command: ['expr', '3', '+', '2']
+          restartPolicy: Never
 ```
 
 ## command & args
@@ -995,3 +1044,53 @@ cat /var/log/kube-proxy.log
 
 * kube-proxy configures service-ips. (see `/etc/kubernetes/manifests/kube-apiserver.yaml`)
 * cni(like weaver) configures pod ips. (see `k logs <weaver pod> weaver`)
+
+## Ingress
+This is an inverse-proxy in k8s. (Some of them supports Gateway) There are lots of [solutions](https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/), but k8s as a project supports and maintains AWS, GCE, and nginx ingress controllers.
+
+If you see [ingress-nginx installation](https://kubernetes.github.io/ingress-nginx/deploy/), it's a deployment with nginx-ingress-controller image with proper rules.
+
+A simple fanout example from [official docs](https://kubernetes.io/docs/concepts/services-networking/ingress/)
+
+![](/img/ingressfanout.svg)
+```yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: simple-fanout-example
+  namespace: default
+spec:
+  rules:
+  - host: foo.bar.com
+    http:
+      paths:
+      - path: /foo
+        pathType: Prefix
+        backend:
+          service:
+            name: service1
+            port:
+              number: 4200
+      - path: /bar
+        pathType: Prefix
+        backend:
+          service:
+            name: service2
+            port:
+              number: 8080
+```
+Note that we can use multiple hosts.
+```yml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-wildcard-host
+spec:
+  rules:
+  - host: "foo.bar.com"
+    http:
+      ...
+  - host: "*.foo.com"
+    http:
+      ...
+```
