@@ -1,0 +1,11 @@
+first, you need to clone this repo
+```bash
+yum install -y git
+git clone https://github.com/mod96/Mmumshad-CKA.git
+```
+or,
+```bash
+apt-get install -y git
+git clone https://github.com/mod96/Mmumshad-CKA.git
+```
+by running `.bash` file, you'll install `docker`, `kubelet`, `kubeadm`, `kubectl`, `kubernetes-cni`
