@@ -29,7 +29,7 @@ echo \
 
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 sudo apt-get update
-sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+sudo apt-get install -y containerd.io
 sudo systemctl daemon-reload
 sudo systemctl enable --now containerd
 
