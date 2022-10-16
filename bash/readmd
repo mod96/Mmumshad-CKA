@@ -8,4 +8,13 @@ or,
 apt-get install -y git
 git clone https://github.com/mod96/Mmumshad-CKA.git
 ```
-by running `.bash` file, you'll install `docker`, `kubelet`, `kubeadm`, `kubectl`, `kubernetes-cni`
+by running `.bash` file, you'll install `containerd`(cri - docker runtime), `kubelet`, `kubeadm`, `kubectl`, `kubernetes-cni`.
+
+Before doing any further, you need to add DNS records for all nodes. For example,
+```
+192.168.0.9 master.k8s
+192.168.0.10 node1.k8s
+...
+```
+
+Then, for master node, run `kubeadm-init.bash`.
