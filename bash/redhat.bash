@@ -20,13 +20,11 @@ sudo yum-config-manager \
 --add-repo \
 https://download.docker.com/linux/centos/docker-ce.repo
 
-sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
-
-sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
-
+sudo yum install -y docker-ce docker-ce-cli containerd.io
 sudo systemctl daemon-reload
 sudo systemctl enable --now containerd
-sudo systemctl start docker
+
+sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
 
 sudo systemctl enable kubelet && systemctl start kubelet
 

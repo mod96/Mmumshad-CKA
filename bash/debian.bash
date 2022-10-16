@@ -14,7 +14,7 @@ sudo apt-get update
 sudo apt-get install -y docker kubelet kubeadm kubectl kubernetes-cni
 sudo apt-mark hold kubelet kubeadm kubectl
 
-sudo apt-get install \
+sudo apt-get install -y \
     ca-certificates \
     curl \
     gnupg \
@@ -29,7 +29,9 @@ echo \
 
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io
+sudo systemctl daemon-reload
+sudo systemctl enable --now containerd
 
 sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
 

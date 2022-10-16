@@ -1,5 +1,4 @@
-sudo systemctl enable docker && systemctl start docker
-
-sudo systemctl enable kubelet && systemctl start kubelet
+modprobe br_netfilter
+echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 
 sudo kubeadm init
