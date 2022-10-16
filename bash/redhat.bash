@@ -13,9 +13,20 @@ sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
 
 systemctl disable firewalld && systemctl stop firewalld
 
-sudo yum install -y docker kubelet kubeadm kubectl kubernetes-cni --disableexcludes=kubernetes
+sudo yum install -y kubelet kubeadm kubectl kubernetes-cni --disableexcludes=kubernetes
 
-sudo systemctl enable docker && systemctl start docker
+sudo yum install -y yum-utils
+sudo yum-config-manager \
+--add-repo \
+https://download.docker.com/linux/centos/docker-ce.repo
+
+sudo yum install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now containerd
+sudo systemctl start docker
 
 sudo systemctl enable kubelet && systemctl start kubelet
 

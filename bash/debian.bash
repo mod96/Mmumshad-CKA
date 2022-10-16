@@ -14,7 +14,24 @@ sudo apt-get update
 sudo apt-get install -y docker kubelet kubeadm kubectl kubernetes-cni
 sudo apt-mark hold kubelet kubeadm kubectl
 
-sudo systemctl enable docker && systemctl start docker
+sudo apt-get install \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+sudo apt-get update
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
 
 sudo systemctl enable kubelet && systemctl start kubelet
 
