@@ -46,6 +46,15 @@ Below is result with single master(centOS 7), two worker nodes(centOS 7, debian 
 
 # APPENDIX A : Setup Multiple ControlPlane
 
+## 1. Copy this repo
+
+## 2. Run LB script on Load Balancing Machine
+but this bash needs arguments (specified 3 mater nodes)
+```bash
+Mmumshad-CKA/bash/LB/redhat-nginx.bash "196.168.0.9" "196.168.0.10" "196.168.0.11"
+```
+
+
 # APPENDIX B : New Token and kubeadm-join.bash
 ```bash
 kubeadm token create > ~/token.txt
