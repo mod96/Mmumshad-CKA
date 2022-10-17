@@ -41,6 +41,8 @@ Now, run `kubeadm-join.bash` in all of your worker nodes. `kubectl get nodes` in
 ## 7. CNI setup on Master node.
 Finally, run `weave-works.bash` in master node.
 
+Below is result with single master(centOS 7), two worker nodes(centOS 7, debian 11)
+![](../img/single-master.PNG)
 
 # APPENDIX A : Setup Multiple ControlPlane
 

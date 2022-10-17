@@ -52,6 +52,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now containerd
 
 sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
+systemctl restart containerd
 
 sudo systemctl enable kubelet && systemctl start kubelet
 

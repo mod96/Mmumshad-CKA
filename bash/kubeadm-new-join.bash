@@ -12,4 +12,5 @@ echo " --discovery-token-ca-cert-hash sha256:" >> tmp
 openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | \
    openssl dgst -sha256 -hex | sed 's/^.* //' >> tmp
 tr -d '\n' < tmp >> kubeadm-join.bash
+echo -e "\n" >> kubeadm-join.bash
 rm tmp
