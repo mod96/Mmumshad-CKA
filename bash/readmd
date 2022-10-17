@@ -1,3 +1,5 @@
+# Configuring K8S Cluster
+
 first, you need to clone this repo
 ```bash
 yum install -y git
@@ -8,13 +10,26 @@ or,
 apt-get install -y git
 git clone https://github.com/mod96/Mmumshad-CKA.git
 ```
-by running `.bash` file, you'll install `containerd`(cri - docker runtime), `kubelet`, `kubeadm`, `kubectl`, `kubernetes-cni`.
+by running `.bash` file specified prefix by the OS, you'll install `containerd`(cri - docker runtime), `kubelet`, `kubeadm`, `kubectl`, `kubernetes-cni`. (Run this for all nodes & for debian, re-login `su`)
 
-Before doing any further, you need to add DNS records for all nodes. For example,
+Before doing any further, you need to add DNS records for all nodes. (`/etc/hosts`) For example,
 ```
 192.168.0.9 master.k8s
 192.168.0.10 node1.k8s
 ...
 ```
+* you can generate one file in master node and scp to every other nodes
+* `hostnamectl --static set-hostname node1.k8s`
 
-Then, for master node, run `kubeadm-init.bash`.
+Then, for master node, run `kubeadm-init.bash`. (If you want to use multiple control-plane, follow `APPENDIX A`)
+
+Then, by using scp, send `kubeadm-init.bash` to all your nodes.
+```bash
+scp kubeadm-init.bash node1.k8s:/root
+```
+Now, run `kubeadm-init.bash` in all of your worker nodes. `kubectl get nodes` in master node will show you if node is well set.
+
+Finally, run `weave-works.bash` in master node.
+
+
+# APPENDIX A : Setup Multiple ControlPlane

@@ -19,6 +19,24 @@ sudo apt-get install -y \
     curl \
     gnupg \
     lsb-release
+sudo apt-get install -y openssh-server ii
+sudo apt install ebtables ethtool iproute2 modprobe
+
+if grep -q "PermitRootLogin yes" /etc/ssh/sshd_config; then
+  echo "ssh password already on."
+else
+  echo "This makes possible to ssh using password"
+  echo -e "PermitRootLogin yes \nPasswordAuthentication yes \n" >> /etc/ssh/sshd_config
+  sudo /etc/init.d/ssh restart
+fi
+
+if grep -q "PATH=" ~/.bashrc; then
+  echo "PATH already configured in bashrc."
+else
+  echo "This adds /usr/sbin to PATH. But you need to re-login su."
+  cat /etc/login.defs | grep ENV_PATH | grep PATH= | awk '{print $2}{print ":/usr/sbin"}' > tmp
+  tr -d '\n' < tmp >> .bashrc
+fi
 
 sudo mkdir -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -37,7 +55,4 @@ sed -i '/"cri"/ s/^/#/' /etc/containerd/config.toml
 
 sudo systemctl enable kubelet && systemctl start kubelet
 
-sysctl -w net.bridge.bridge-nf-call-iptables=1
-echo "net.bridge.bridge-nf-call-iptables=1" > /etc/sysctl.d/k8s.config
-
-swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab
+sudo swapoff -a && sed -i '/ swap / s/^/#/' /etc/fstab
