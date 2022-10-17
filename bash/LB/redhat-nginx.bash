@@ -1,5 +1,17 @@
 sudo yum install yum-utils
 
+if [ -z ${releasever+x} ]; then
+    export releasever="7"
+else
+    echo "releasever=$releasever"
+fi
+
+if [ -z ${basearch+x} ]; then
+    export basearch="x86_64"
+else
+    echo "basearch=$basearch"
+fi
+
 cat <<EOF | sudo tee /etc/yum.repos.d/nginx.repo
 [nginx-stable]
 name=nginx stable repo
