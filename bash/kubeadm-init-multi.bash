@@ -19,5 +19,5 @@ echo 1 > /proc/sys/net/bridge/bridge-nf-call-iptables
 echo 1 > /proc/sys/net/ipv4/ip_forward
 EOF
 
-sed -n '/kubeadm join/,/--discovery-token-ca-cert-hash/p' \
+sed -n '/kubeadm join/p;/--discovery-token-ca-cert-hash/p;/--control-plane/p' \
 kubeadm-init-log.log >> kubeadm-join.bash

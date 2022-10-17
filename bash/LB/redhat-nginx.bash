@@ -30,6 +30,9 @@ gpgkey=https://nginx.org/keys/nginx_signing.key
 module_hotfixes=true
 EOF
 
+sudo setenforce 0
+sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+
 sudo yum install -y nginx
 
 sudo firewall-cmd --permanent --zone=public --add-port=6443/tcp

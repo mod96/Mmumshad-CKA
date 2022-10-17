@@ -54,6 +54,18 @@ but this bash needs arguments (specified 3 mater nodes)
 Mmumshad-CKA/bash/LB/redhat-nginx.bash "196.168.0.9" "196.168.0.10" "196.168.0.11"
 ```
 
+## 3. DNS update
+
+## 4. Master Init
+Then, for master node, run `kubeadm-init-multi.bash`. (If you want to use multiple control-plane, follow `APPENDIX A`)
+
+## 5. Send kubeadm-join
+
+## 6. Run kubeadm-join on each sub-master nodes.
+## 7. Run kubeadm-join on each worker nodes.
+## 8. CNI setup on Master node.
+
+![](../img/multi-master.PNG)
 
 # APPENDIX B : New Token and kubeadm-join.bash
 ```bash
