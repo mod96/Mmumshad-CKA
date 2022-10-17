@@ -20,7 +20,7 @@ sudo apt-get install -y \
     gnupg \
     lsb-release
 sudo apt-get install -y openssh-server ii
-sudo apt install ebtables ethtool iproute2 modprobe
+sudo apt install ebtables ethtool iproute2
 
 if grep -q "PermitRootLogin yes" /etc/ssh/sshd_config; then
   echo "ssh password already on."
